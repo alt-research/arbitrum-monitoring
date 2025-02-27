@@ -1,100 +1,53 @@
-export const nodeCreatedEventAbi = {
+import { parseAbiItem } from 'viem'
+
+export const rollupABI = [
+  {
+    inputs: [],
+    name: 'validatorWhitelistDisabled',
+    outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
+    stateMutability: 'view',
+    type: 'function',
+  }
+] as const
+
+export const boldABI = [
+  {
+    inputs: [],
+    name: 'genesisAssertionHash',
+    outputs: [{ internalType: 'bytes32', name: '', type: 'bytes32' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+] as const
+
+export const ASSERTION_CREATED_EVENT = {
+  ...parseAbiItem(
+    'event AssertionCreated(bytes32 indexed assertionHash, bytes32 indexed parentAssertionHash, ((bytes32 prevPrevAssertionHash, bytes32 sequencerBatchAcc, (bytes32 wasmModuleRoot, uint256 requiredStake, address challengeManager, uint64 confirmPeriodBlocks, uint64 nextInboxPosition)), ((bytes32[2] globalStateBytes32Vals, uint64[2] globalStateU64Vals), uint8 beforeStateMachineStatus, bytes32 beforeStateEndHistoryRoot), ((bytes32[2] globalStateBytes32Vals, uint64[2] globalStateU64Vals), uint8 afterStateMachineStatus, bytes32 afterStateEndHistoryRoot)) assertion, bytes32 afterInboxBatchAcc, uint256 inboxMaxCount, bytes32 wasmModuleRoot, uint256 requiredStake, address challengeManager, uint64 confirmPeriodBlocks)'
+  ),
+  name: 'AssertionCreated',
   type: 'event',
+} as const
+
+export const ASSERTION_CONFIRMED_EVENT = {
+  ...parseAbiItem(
+    'event AssertionConfirmed(bytes32 indexed assertionHash, bytes32 blockHash, bytes32 sendRoot)'
+  ),
+  name: 'AssertionConfirmed',
+  type: 'event',
+} as const
+
+export const NODE_CREATED_EVENT = {
+  ...parseAbiItem(
+    'event NodeCreated(uint64 indexed nodeNum, bytes32 indexed parentNodeHash, bytes32 indexed nodeHash, bytes32 executionHash, (((bytes32[2] bytes32Vals, uint64[2] u64Vals) globalState, uint8 machineStatus) beforeState, ((bytes32[2] bytes32Vals, uint64[2] u64Vals) globalState, uint8 machineStatus) afterState, uint64 numBlocks) assertion, bytes32 afterInboxBatchAcc, bytes32 wasmModuleRoot, uint256 inboxMaxCount)'
+  ),
   name: 'NodeCreated',
-  inputs: [
-    {
-      type: 'uint64',
-      name: 'nodeNum',
-      indexed: true,
-    },
-    {
-      type: 'bytes32',
-      name: 'parentNodeHash',
-      indexed: true,
-    },
-    {
-      type: 'bytes32',
-      name: 'nodeHash',
-      indexed: true,
-    },
-    {
-      type: 'bytes32',
-      name: 'executionHash',
-      indexed: false,
-    },
-    {
-      type: 'tuple',
-      name: 'assertion',
-      components: [
-        {
-          type: 'tuple',
-          name: 'beforeState',
-          components: [
-            {
-              type: 'tuple',
-              name: 'globalState',
-              components: [
-                {
-                  type: 'bytes32[2]',
-                  name: 'bytes32Vals',
-                },
-                {
-                  type: 'uint64[2]',
-                  name: 'u64Vals',
-                },
-              ],
-            },
-            {
-              type: 'uint8',
-              name: 'machineStatus',
-            },
-          ],
-        },
-        {
-          type: 'tuple',
-          name: 'afterState',
-          components: [
-            {
-              type: 'tuple',
-              name: 'globalState',
-              components: [
-                {
-                  type: 'bytes32[2]',
-                  name: 'bytes32Vals',
-                },
-                {
-                  type: 'uint64[2]',
-                  name: 'u64Vals',
-                },
-              ],
-            },
-            {
-              type: 'uint8',
-              name: 'machineStatus',
-            },
-          ],
-        },
-        {
-          type: 'uint64',
-          name: 'numBlocks',
-        },
-      ],
-      indexed: false,
-    },
-    {
-      type: 'bytes32',
-      name: 'afterInboxBatchAcc',
-      indexed: false,
-    },
-    {
-      type: 'bytes32',
-      name: 'wasmModuleRoot',
-      indexed: false,
-    },
-    {
-      type: 'uint256',
-      name: 'inboxMaxCount',
-      indexed: false,
-    },
-  ],
+  type: 'event',
+} as const
+
+export const NODE_CONFIRMED_EVENT = {
+  ...parseAbiItem(
+    'event NodeConfirmed(uint64 indexed nodeNum, bytes32 blockHash, bytes32 sendRoot)'
+  ),
+  name: 'NodeConfirmed',
+  type: 'event',
 } as const
