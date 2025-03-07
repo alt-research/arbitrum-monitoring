@@ -8,8 +8,7 @@ import {
 import {
   createChildChainClient,
   fetchChainState,
-  getValidatorWhitelistDisabled,
-  isBoldEnabled,
+  isBoldEnabled
 } from './blockchain'
 import { getBlockTimeForChain, getChainFromId } from './chains'
 import {
@@ -141,16 +140,10 @@ export const checkChainForAssertionIssues = async (
     fromBlock,
     toBlock,
   })
-  // Get validator whitelist status
-  const validatorWhitelistDisabled = await getValidatorWhitelistDisabled(
-    parentClient,
-    childChainInfo.ethBridge.rollup
-  )
 
   const alerts = await analyzeAssertionEvents(
     chainState,
     childChainInfo,
-    validatorWhitelistDisabled,
     isBold
   )
   if (alerts.length > 0) {

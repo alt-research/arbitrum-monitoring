@@ -1,5 +1,6 @@
 import { ChildNetwork as ChainInfo } from '../utils'
 import {
+  BOLD_LOW_BASE_STAKE_ALERT,
   CHAIN_ACTIVITY_WITHOUT_ASSERTIONS_ALERT,
   CONFIRMATION_DELAY_ALERT,
   CREATION_EVENT_STUCK_ALERT,
@@ -34,7 +35,6 @@ import { isEventRecent } from './utils'
 export const analyzeAssertionEvents = async (
   chainState: ChainState,
   chainInfo: ChainInfo,
-  validatorWhitelistDisabled: boolean,
   isBold: boolean = true
 ): Promise<string[]> => {
   const alerts: string[] = []
@@ -48,10 +48,16 @@ export const analyzeAssertionEvents = async (
     confirmationDelayExceedsPeriod,
     creationEventStuckInChallengePeriod,
     nonBoldMissingRecentCreation,
+    isValidatorWhitelistDisabledOnClassic,
+    isBaseStakeBelowThresholdOnBold,
   } = generateConditionsForAlerts(chainInfo, chainState, isBold)
 
-  if (validatorWhitelistDisabled) {
+  if (isValidatorWhitelistDisabledOnClassic) {
     alerts.push(VALIDATOR_WHITELIST_DISABLED_ALERT)
+  }
+
+  if (isBaseStakeBelowThresholdOnBold) {
+    alerts.push(BOLD_LOW_BASE_STAKE_ALERT)
   }
 
   if (!doesLatestChildCreatedBlockExist) {
@@ -214,6 +220,22 @@ export const generateConditionsForAlerts = (
     (!childLatestCreatedBlock ||
       (!hasRecentCreationEvents && hasActivityWithoutAssertions))
 
+  /**
+   * Whether a Classic chain's validator whitelist is disabled, allowing
+   * unauthorized validators to post assertions.
+   */
+  const isValidatorWhitelistDisabledOnClassic =
+    !isBold && chainState.isValidatorWhitelistDisabled
+
+  /**
+   * Whether a BoLD chain's base stake is below threshold, indicating restricted
+   * validator participation in dispute resolution.
+   */
+  const isBaseStakeBelowThresholdOnBold =
+    isBold &&
+    chainState.isBaseStakeBelowThreshold &&
+    chainState.isValidatorWhitelistDisabled
+
   return {
     doesLatestChildCreatedBlockExist,
     doesLatestChildConfirmedBlockExist,
@@ -224,5 +246,7 @@ export const generateConditionsForAlerts = (
     confirmationDelayExceedsPeriod,
     creationEventStuckInChallengePeriod,
     nonBoldMissingRecentCreation,
+    isValidatorWhitelistDisabledOnClassic,
+    isBaseStakeBelowThresholdOnBold,
   }
 }
