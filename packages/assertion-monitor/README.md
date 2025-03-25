@@ -1,97 +1,71 @@
 # Assertion Monitor
 
-This tool is designed to monitor assertions on Arbitrum chains. It performs comprehensive monitoring of both BOLD (Bounded Liquidity Delay) and Classic rollup chains, with the following checks:
+> For installation and general configuration, see the [main README](../../README.md).
 
-## Chain Activity Monitoring
-1. Tracks chain activity by monitoring block progression
-2. Verifies the latest confirmed block number from the child chain
-3. Detects periods of inactivity or stalled chain progress
+## Overview
 
-## Assertion Creation Monitoring
-1. No assertions created in the last 4 hours when there is chain activity
-2. Tracks creation events and validates their frequency
-3. Alerts when chain activity exists without new assertions
+The Assertion Monitor monitors the lifecycle of assertions in both BoLD (Bounded Liquidity Delay) and pre-BoLD rollup chains. [Learn more](https://docs.arbitrum.io/how-arbitrum-works/inside-arbitrum-nitro#arbitrum-rollup-protocol).
 
-## Assertion Confirmation Monitoring
-1. No assertions confirmed within the chain's confirmation period
-2. Tracks unconfirmed assertions and their age
-3. Monitors confirmation delays against the chain's configured period
-4. Validates the time between creation and confirmation events
-
-## Alert Types
-The monitor generates alerts for the following conditions:
-
-1. Creation Issues:
-   - No assertion creation events in the last 7 days
-   - Chain activity detected but no new assertions created in the last 4 hours
-
-2. Confirmation Issues:
-   - Parent chain confirmation issues - assertions not confirming
-   - Unconfirmed assertions present
-   - Assertion age exceeds confirmation period
-   - Confirmation delay exceeds the configured period
-
-3. Chain State Issues:
-   - Chain stalled or inactive
-   - Block synchronization issues
-   - Validator whitelist status changes
-
-Read more about assertions [here](https://docs.arbitrum.io/how-arbitrum-works/inside-arbitrum-nitro#arbitrum-rollup-protocol).
-
-## Prerequisites
-
-Before using this tool, make sure you have the following installed:
-
-- [Node.js](https://nodejs.org/en)
-- [Yarn](https://classic.yarnpkg.com/lang/en/docs/install/#mac-stable)
-
-Additionally, ensure that you have added your Arbitrum network configuration to the `config.json` file in the `lib` directory;
-
-## Installation
-
-From the root directory of the project, run the following command to install dependencies:
+## Command-Line Interface
 
 ```bash
-yarn install
+yarn assertion-monitor [options]
+
+Monitor assertion creation and validation on Arbitrum chains
+
+Options:
+  --help             Show help                      [boolean]
+  --version          Show version number            [boolean]
+  --configPath       Path to config file            [string] [default: "config.json"]
+  --enableAlerting   Enable Slack alerts            [boolean] [default: false]
+
+Examples:
+  yarn assertion-monitor                            Run with default config
+  yarn assertion-monitor --enableAlerting           Enable Slack notifications
+  yarn assertion-monitor --configPath=custom.json   Use custom config file
+
+Environment Variables:
+  ASSERTION_MONITORING_SLACK_TOKEN    Slack API token for alerts
+  ASSERTION_MONITORING_SLACK_CHANNEL  Slack channel for alerts
 ```
 
-## Execution
+## Monitor Details
 
-### One-off Check
+The Assertion Monitor tracks assertions through their lifecycle, implementing distinct strategies for BoLD and pre-BoLD rollup chains.
 
-To find assertion events and display their status for a specific block range, execute the following command:
+### Critical Events Monitored
 
-```bash
-yarn dev [--configPath=<CONFIG_PATH>]
-```
+The monitor tracks five categories of blockchain events:
 
-- If `--configPath` is not provided, it defaults to `config.json`.
-- This command will identify all assertion events (both creation and confirmation) from the parent chain to your Orbit chain within the specified block range.
+- **Creation Events**: Records when new assertions and nodes are created on the chain to verify transaction execution
+- **Confirmation Events**: Identifies when assertions are confirmed on the parent chain after challenge periods end
+- **Validator Events**: Tracks validator participation metrics including stakes, challenges, and whitelist status
+- **Block Events**: Monitors block production rates, finalization timing, and synchronization between chains
+- **Chain State**: Analyzes the overall consistency between on-chain state and expected protocol behavior
 
-### Error Generation and Reporting
+### Alert Scenarios
 
-To enable reporting, use `--enableAlerting` flag.
+The monitor triggers alerts when these conditions are detected:
 
-This will enable alerts for all the conditions listed above in the Alert Types section.
+#### Creation Issues
 
-Additionally, you might also want to log these errors to Slack, for which you will need to configure, in the `.env` file:
+- No assertion creation events within configured time window
+- Chain activity without corresponding recent assertions
+- Extended node creation gaps on non-BoLD chains
+- Validator participation below required thresholds
 
-- `NODE_ENV=CI`
-- `ASSERTION_MONITORING_SLACK_TOKEN=<your-slack-token>`
-- `ASSERTION_MONITORING_SLACK_CHANNEL=<your-slack-channel-key>`
+#### Confirmation Issues
 
-Check [Slack integration documentation](https://api.slack.com/quickstart) for more information about getting these auth tokens.
+- Parent chain block threshold exceeded
+- Assertions stuck in challenge period
+- Data inconsistencies between confirmation events and confirmed blocks
+- Confirmation events missing despite available creation events
 
-## Chain Support
+#### Other Issues
 
-The monitor automatically detects and adapts to different chain types:
+- Validator whitelist disabled on pre-BoLD chains
+- Base stake below 1 ETH threshold on BoLD chains
+- Parent-child chain synchronization anomalies
+- State inconsistencies between expected and observed chain state
 
-1. BOLD (Bounded Liquidity Delay) Chains:
-   - Uses BOLD-specific assertion formats and validation
-   - Tracks BOLD-specific confirmation processes
-   - Monitors BOLD genesis assertion hash
-
-2. Classic Rollup Chains:
-   - Uses Classic node creation and confirmation events
-   - Monitors Classic-specific block validation
-   - Tracks node confirmation processes
+For implementation details and thresholds, see `alerts.ts` and `monitoring.ts`.
