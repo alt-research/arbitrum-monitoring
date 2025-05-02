@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { ParentToChildMessageStatus } from '@arbitrum/sdk'
 import { ERC20__factory } from '@arbitrum/sdk/dist/lib/abi/factories/ERC20__factory'
-import { BigNumber, ethers, providers } from 'ethers'
+import { BigNumber, ethers } from 'ethers'
 import { ArbGasInfo__factory } from '@arbitrum/sdk/dist/lib/abi/factories/ArbGasInfo__factory'
 import {
   ARB_GAS_INFO,
@@ -9,80 +9,12 @@ import {
 } from '@arbitrum/sdk/dist/lib/dataEntities/constants'
 import { ArbRetryableTx__factory } from '@arbitrum/sdk/dist/lib/abi/factories/ArbRetryableTx__factory'
 import { Provider } from '@ethersproject/abstract-provider'
-import { reportRetryableErrorToSlack } from './reportRetryableErrorToSlack'
 import {
   ChildChainTicketReport,
   ParentChainTicketReport,
   TokenDepositData,
-} from './types'
-import { ChildNetwork, getExplorerUrlPrefixes } from '../utils'
-
-export const reportFailedTicket = async ({
-  parentChainTicketReport,
-  childChainTicketReport,
-  tokenDepositData,
-  childChain,
-}: {
-  parentChainTicketReport: ParentChainTicketReport
-  childChainTicketReport: ChildChainTicketReport
-  tokenDepositData?: TokenDepositData
-  childChain: ChildNetwork
-}) => {
-  // slack it
-  const t = childChainTicketReport
-  const now = Math.floor(new Date().getTime() / 1000) // now in s
-
-  // don't report tickets which are not yet scheduled if they have been created in last 2h
-  const reportingPeriodForNotScheduled = 2 * 60 * 60 // 2 hours in s
-  if (
-    t.status == 'NOT_YET_CREATED' &&
-    now - +t.createdAtTimestamp < reportingPeriodForNotScheduled
-  ) {
-    return
-  }
-
-  // don't report tickets which expired more than 2 days ago
-  const reportingPeriodForExpired = 2 * 24 * 60 * 60 // 2 days in s
-  if (
-    t.status == 'EXPIRED' &&
-    now - +t.timeoutTimestamp > reportingPeriodForExpired
-  ) {
-    return
-  }
-
-  const l1Report = parentChainTicketReport
-
-  const childChainProvider = new providers.JsonRpcProvider(
-    String(childChain.orbitRpcUrl)
-  )
-
-  const parentChainProvider = new providers.JsonRpcProvider(
-    String(childChain.parentRpcUrl)
-  )
-
-  // build message to report
-  let reportStr =
-    formatPrefix(t, childChain.name) +
-    (await formatInitiator(tokenDepositData, l1Report, childChain)) +
-    (await formatDestination(t, childChain)) +
-    formatL1TX(l1Report, childChain) +
-    formatId(t, childChain) +
-    formatL2ExecutionTX(t, childChain) +
-    (await formatL2Callvalue(t, childChain, parentChainProvider)) +
-    (await formatTokenDepositData(tokenDepositData)) +
-    (await formatGasData(t, childChainProvider)) +
-    // (await formatCallData(t)) +
-    // (await formatFailureReason(t)) +
-    formatCreatedAt(t) +
-    formatExpiration(t) +
-    '\n================================================================='
-
-  try {
-    reportRetryableErrorToSlack({ message: reportStr })
-  } catch (e) {
-    console.log('Could not send slack message', e)
-  }
-}
+} from '../core/types'
+import { ChildNetwork, getExplorerUrlPrefixes } from '../../utils'
 
 /**
  *
@@ -96,7 +28,7 @@ export const reportFailedTicket = async ({
 let ethPriceCache: number
 let tokenPriceCache: { [key: string]: number } = {}
 
-const getTimeDifference = (timestampInSeconds: number) => {
+export const getTimeDifference = (timestampInSeconds: number) => {
   const now = new Date().getTime() / 1000
   const difference = timestampInSeconds - now
 
@@ -116,7 +48,7 @@ const getTimeDifference = (timestampInSeconds: number) => {
   }
 }
 
-const formatPrefix = (
+export const formatPrefix = (
   ticket: ChildChainTicketReport,
   childChainName: string
 ) => {
@@ -151,7 +83,7 @@ const formatPrefix = (
   return prefix
 }
 
-const formatInitiator = async (
+export const formatInitiator = async (
   deposit: TokenDepositData | undefined,
   l1Report: ParentChainTicketReport | undefined,
   childChain: ChildNetwork
@@ -177,7 +109,10 @@ const formatInitiator = async (
   return ''
 }
 
-const formatId = (ticket: ChildChainTicketReport, childChain: ChildNetwork) => {
+export const formatId = (
+  ticket: ChildChainTicketReport,
+  childChain: ChildNetwork
+) => {
   let msg = '\n\t *Child chain ticket creation TX:* '
 
   if (ticket.id == null) {
@@ -189,7 +124,7 @@ const formatId = (ticket: ChildChainTicketReport, childChain: ChildNetwork) => {
   return `${msg}<${CHILD_CHAIN_TX_PREFIX + ticket.id}|${ticket.id}>`
 }
 
-const formatL1TX = (
+export const formatL1TX = (
   l1Report: ParentChainTicketReport | undefined,
   childChain: ChildNetwork
 ) => {
@@ -206,7 +141,7 @@ const formatL1TX = (
   }>`
 }
 
-const formatL2ExecutionTX = (
+export const formatL2ExecutionTX = (
   ticket: ChildChainTicketReport,
   childChain: ChildNetwork
 ) => {
@@ -223,7 +158,7 @@ const formatL2ExecutionTX = (
   }>`
 }
 
-const formatL2Callvalue = async (
+export const formatL2Callvalue = async (
   ticket: ChildChainTicketReport,
   childChain: ChildNetwork,
   parentChainProvider: Provider
@@ -247,7 +182,7 @@ const formatL2Callvalue = async (
   }
 }
 
-const formatTokenDepositData = async (
+export const formatTokenDepositData = async (
   deposit: TokenDepositData | undefined
 ) => {
   let msg = '\n\t *Tokens deposited:* '
@@ -271,7 +206,7 @@ const formatTokenDepositData = async (
   return msg
 }
 
-const formatDestination = async (
+export const formatDestination = async (
   ticket: ChildChainTicketReport,
   childChain: ChildNetwork
 ) => {
@@ -283,7 +218,7 @@ const formatDestination = async (
   }>`
 }
 
-const formatGasData = async (
+export const formatGasData = async (
   ticket: ChildChainTicketReport,
   childChainProvider: Provider
 ) => {
@@ -323,11 +258,11 @@ const formatGasData = async (
   return msg
 }
 
-const formatCreatedAt = (ticket: ChildChainTicketReport) => {
+export const formatCreatedAt = (ticket: ChildChainTicketReport) => {
   return `\n\t *Created at:* ${timestampToDate(+ticket.createdAtTimestamp)}`
 }
 
-const formatExpiration = (ticket: ChildChainTicketReport) => {
+export const formatExpiration = (ticket: ChildChainTicketReport) => {
   let msg = `\n\t *${
     ticket.status == 'Expired' ? `Expired` : `Expires`
   } at:* ${timestampToDate(+ticket.timeoutTimestamp)}`
@@ -341,7 +276,7 @@ const formatExpiration = (ticket: ChildChainTicketReport) => {
   return msg
 }
 
-const getEthPrice = async () => {
+export const getEthPrice = async () => {
   if (ethPriceCache !== undefined) {
     return ethPriceCache
   }
@@ -353,7 +288,7 @@ const getEthPrice = async () => {
   return ethPriceCache
 }
 
-const getTokenPrice = async (tokenAddress: string) => {
+export const getTokenPrice = async (tokenAddress: string) => {
   if (tokenPriceCache[tokenAddress] !== undefined) {
     return tokenPriceCache[tokenAddress]
   }

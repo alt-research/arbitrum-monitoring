@@ -1,5 +1,7 @@
+import { ChildNetwork } from '../../utils'
+
 // Type for options passed to findRetryables function
-export type FindRetryablesOptions = {
+export interface FindRetryablesOptions {
   fromBlock: number
   toBlock: number
   continuous: boolean
@@ -34,7 +36,14 @@ export interface TokenDepositData {
   sender: string
   l1Token: {
     symbol: string
-    id: string
     decimals: number
+    id: string
   }
 }
+
+export type OnFailedRetryableFound = (params: {
+  parentChainRetryableReport: ParentChainTicketReport
+  childChainRetryableReport: ChildChainTicketReport
+  tokenDepositData?: TokenDepositData
+  childChain: ChildNetwork
+}) => Promise<void>
