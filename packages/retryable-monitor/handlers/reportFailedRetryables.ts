@@ -1,12 +1,12 @@
 import { providers } from 'ethers'
-import { ChildNetwork } from '../../utils'
+import { ChildNetwork } from 'utils'
 import {
   ChildChainTicketReport,
   ParentChainTicketReport,
   TokenDepositData,
 } from '../core/types'
-import { postSlackMessage } from './postSlackMessage'
-import { generateFailedRetryableSlackMessage } from './slackMessageGenerator'
+import { postSlackMessage } from './slack/postSlackMessage'
+import { generateFailedRetryableSlackMessage } from './slack/slackMessageGenerator'
 
 export const reportFailedRetryables = async ({
   parentChainRetryableReport,
