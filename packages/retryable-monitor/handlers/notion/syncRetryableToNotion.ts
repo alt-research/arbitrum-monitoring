@@ -12,7 +12,7 @@ export async function syncRetryableToNotion(
     ChildTx,
     ParentTx,
     createdAt,
-    status = 'Untriaged',
+    status,
     priority = 'Unset',
     metadata,
   } = input
@@ -31,32 +31,21 @@ export async function syncRetryableToNotion(
     const isRetryableFoundInNotion = search.results.length > 0
 
     const rawCreatedAt = metadata?.createdAt ?? createdAt
+    const createdAtMs =
+      rawCreatedAt > 1e14
+        ? Math.floor(rawCreatedAt / 1000)
+        : rawCreatedAt > 1e12
+        ? rawCreatedAt
+        : rawCreatedAt > 1e10
+        ? rawCreatedAt
+        : rawCreatedAt * 1000
 
-    // Normalize to milliseconds (ms) — only if needed
-    let createdAtMs: number
-
-    if (rawCreatedAt > 1e14) {
-      // Too big: microseconds → convert to ms
-      createdAtMs = Math.floor(rawCreatedAt / 1000)
-    } else if (rawCreatedAt > 1e12) {
-      // Still too big: milliseconds → use as-is
-      createdAtMs = rawCreatedAt
-    } else if (rawCreatedAt > 1e10) {
-
-      createdAtMs = rawCreatedAt
-    } else {
-      // Normal seconds → convert to ms
-      createdAtMs = rawCreatedAt * 1000
-    }
     const notionProps: Record<string, any> = {
       ParentTx: { rich_text: [{ text: { content: ParentTx } }] },
-      CreatedAt: {
-        date: {
-          start: new Date(createdAtMs).toISOString(),
-        },
-      },
+      CreatedAt: { date: { start: new Date(createdAtMs).toISOString() } },
       Priority: { select: { name: priority } },
     }
+
     if (input.timeout) {
       notionProps['timeoutTimestamp'] = {
         date: { start: new Date(input.timeout).toISOString() },
@@ -68,9 +57,7 @@ export async function syncRetryableToNotion(
         rich_text: [{ text: { content: metadata.gasPriceProvided } }],
       }
       notionProps['GasPriceAtCreation'] = {
-        rich_text: [
-          { text: { content: metadata.gasPriceAtCreation ?? 'N/A' } },
-        ],
+        rich_text: [{ text: { content: metadata.gasPriceAtCreation ?? 'N/A' } }],
       }
       notionProps['GasPriceNow'] = {
         rich_text: [{ text: { content: metadata.gasPriceNow } }],
@@ -97,38 +84,50 @@ export async function syncRetryableToNotion(
 
       const props = (page as PageObjectResponse).properties
       const statusProp = props?.Status
+      const decisionProp = props?.Decision
 
-      let currentStatus: string | undefined = undefined
-      if (statusProp && statusProp.type === 'select' && statusProp.select) {
-        currentStatus = statusProp.select.name
-      }
+      const currentStatus =
+        statusProp?.type === 'select' && statusProp.select
+          ? statusProp.select.name
+          : undefined
+      const currentDecision =
+        decisionProp?.type === 'select' && decisionProp.select
+          ? decisionProp.select.name
+          : undefined
 
-      if (status === 'Resolved') {
-        const resolvedProps: Record<string, any> = {
-          Status: { select: { name: 'Resolved' } },
+      // ✅ Handle Executed updates
+      if (status === 'Executed') {
+        const executedProps: Record<string, any> = {
+          Status: { select: { name: 'Executed' } },
         }
 
         if (input.timeout) {
-          resolvedProps['timeoutTimestamp'] = {
+          executedProps['timeoutTimestamp'] = {
             date: { start: new Date(input.timeout).toISOString() },
           }
         }
 
-        return await notionClient.pages
-          .update({
-            page_id: page.id,
-            properties: resolvedProps,
-          })
-          .then(() => ({
-            id: page.id,
-            status: 'Resolved',
-            isNew: false,
-          }))
+        if (!currentDecision && metadata?.decision) {
+          executedProps['Decision'] = {
+            select: { name: metadata.decision },
+          }
+        }
+
+        await notionClient.pages.update({
+          page_id: page.id,
+          properties: executedProps,
+        })
+
+        return { id: page.id, status: 'Executed', isNew: false }
       }
 
-      // Only overwrite status if still Untriaged or missing
-      if (currentStatus === 'Untriaged' || !currentStatus) {
-        notionProps['Status'] = { select: { name: status } }
+      notionProps['Status'] = { select: { name: status } }
+
+      // Only set Decision if it's missing
+      if (!currentDecision && metadata?.decision) {
+        notionProps['Decision'] = {
+          select: { name: metadata.decision },
+        }
       }
 
       await notionClient.pages.update({
@@ -139,17 +138,17 @@ export async function syncRetryableToNotion(
       return { id: page.id, status: currentStatus ?? status, isNew: false }
     }
 
-    if (!isRetryableFoundInNotion && status === 'Resolved') {
-      // Resolved but not found—skip
+    // If not found and Executed, skip creation
+    if (!isRetryableFoundInNotion && status === 'Executed') {
       return undefined
     }
 
-    // Retryable is new and unresolved—create full entry
     const created = await notionClient.pages.create({
       parent: { database_id: databaseId },
       properties: {
         ChildTx: { title: [{ text: { content: ChildTx } }] },
         Status: { select: { name: status } },
+        ...(metadata?.decision ? { Decision: { select: { name: metadata.decision } } } : {}),
         ...notionProps,
       },
     })

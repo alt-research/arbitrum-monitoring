@@ -64,13 +64,9 @@ export interface OnRetryableFoundParams {
   ParentTx: string
   createdAt: number
   timeout?: number
-  status?:
-    | 'Untriaged'
-    | 'Investigating'
-    | 'Resolved'
-    | 'False Positive'
-    | 'Expired'
+  status:string
   priority?: 'High' | 'Medium' | 'Low' | 'Unset'
+  decision?: string
   metadata?: {
     tokensDeposited?: string
     gasPriceProvided: string
@@ -78,6 +74,8 @@ export interface OnRetryableFoundParams {
     gasPriceNow: string
     l2CallValue: string
     createdAt?: number
+    decision?: string
+    
   }
 }
 
