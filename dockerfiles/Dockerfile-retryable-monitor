@@ -1,0 +1,29 @@
+# -------- Stage 1: Build --------
+FROM node:22-slim AS builder
+
+WORKDIR /app
+
+COPY . .
+
+RUN yarn install --immutable
+
+RUN yarn workspace retryable-monitor build
+# -------- Stage 2: Runtime --------
+FROM node:22-slim
+
+WORKDIR /app
+
+RUN apt-get update && \
+    apt-get install -y jq curl && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /app ./
+
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/yarn.lock ./yarn.lock
+
+
+RUN chmod +x ./packages/retryable-monitor/entrypoint.sh
+
+WORKDIR /app/packages/retryable-monitor
+ENTRYPOINT ["/app/packages/retryable-monitor/entrypoint.sh"]
