@@ -134,7 +134,7 @@ const processOrbitChainsConcurrently = async () => {
       name: childChain.name,
       chainID: childChain.chainId,
       orbitRpcUrl: childChain.orbitRpcUrl,
-      parentRpcUrl: childChain.parentRpcUrl,
+      parentRpcUrl: '[REDACTED]',
     }))
   )
 

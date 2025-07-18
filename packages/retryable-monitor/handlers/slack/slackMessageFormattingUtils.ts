@@ -163,24 +163,42 @@ export const formatL2Callvalue = async (
   childChain: ChildNetwork,
   parentChainProvider: Provider
 ) => {
-  if (childChain.nativeToken) {
+  // Handle custom ERC20 token as gas token
+  if (
+    childChain.nativeToken &&
+    childChain.nativeToken !== ethers.constants.AddressZero
+  ) {
     const erc20 = ERC20__factory.connect(
       childChain.nativeToken,
       parentChainProvider
-    )
-    const [symbol, decimals] = await Promise.all([
-      erc20.symbol(),
-      erc20.decimals(),
-    ])
+    );
 
-    const nativeTokenAmount = ethers.utils.formatUnits(ticket.deposit, decimals)
-    return `\n\t *Child chain callvalue:* ${nativeTokenAmount} ${symbol} (Gas token: ${symbol})`
-  } else {
-    const ethAmount = ethers.utils.formatEther(ticket.deposit)
-    const depositWorthInUsd = (+ethAmount * (await getEthPrice())).toFixed(2)
-    return `\n\t *Child chain callvalue:* ${ethAmount} ETH ($${depositWorthInUsd})`
+    let symbol = '';
+    let decimals = 18;
+
+    try {
+      [symbol, decimals] = await Promise.all([
+        erc20.symbol(),
+        erc20.decimals(),
+      ]);
+    } catch (err) {
+      console.warn(
+        `⚠ Failed to fetch symbol/decimals for token ${childChain.nativeToken}:`,
+        err
+      );
+      symbol = 'UNKNOWN';
+    }
+
+    const nativeTokenAmount = ethers.utils.formatUnits(ticket.deposit, decimals);
+    return `\n\t *Child chain callvalue:* ${nativeTokenAmount} ${symbol} (Gas token: ${symbol})`;
   }
-}
+
+  // Fallback for ETH-based chains (e.g., Sepolia-based Orbit)
+  const ethAmount = ethers.utils.formatEther(ticket.deposit);
+  const depositWorthInUsd = (+ethAmount * (await getEthPrice())).toFixed(2);
+  return `\n\t *Child chain callvalue:* ${ethAmount} ETH ($${depositWorthInUsd})`;
+};
+
 
 export const formatTokenDepositData = async (
   deposit: TokenDepositData | undefined
